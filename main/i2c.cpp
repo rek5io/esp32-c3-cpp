@@ -3,20 +3,34 @@
 #include "driver/i2c_master.h"
 
 namespace i2c {
-    i2c_master_bus_handle_t bus_handle;
+    class I2cBus {
+        private:
+            i2c_master_bus_handle_t bus_handle;
+            I2cBus() {}
 
-    auto init_master() -> void {
-        i2c_master_bus_config_t i2c_mst_config = {};
-        i2c_mst_config.clk_source = I2C_CLK_SRC_DEFAULT;
-        i2c_mst_config.i2c_port = I2C_NUM_0;
-        i2c_mst_config.scl_io_num = GPIO_NUM_3;
-        i2c_mst_config.sda_io_num = GPIO_NUM_4;
-        i2c_mst_config.glitch_ignore_cnt = 7;
-        i2c_mst_config.flags = {};
-        i2c_mst_config.flags.enable_internal_pullup = true;
+        public:
+            static auto init_master() -> I2cBus {
+                i2c_master_bus_handle_t bus_handle;
+                i2c_master_bus_config_t i2c_mst_config = {};
+                i2c_mst_config.clk_source = I2C_CLK_SRC_DEFAULT;
+                i2c_mst_config.i2c_port = I2C_NUM_0;
+                i2c_mst_config.scl_io_num = GPIO_NUM_3;
+                i2c_mst_config.sda_io_num = GPIO_NUM_4;
+                i2c_mst_config.glitch_ignore_cnt = 7;
+                i2c_mst_config.flags = {};
+                i2c_mst_config.flags.enable_internal_pullup = true;
 
-        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
-    }
+                ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
+    
+                I2cBus bus;
+                bus.bus_handle = bus_handle;
+                return bus;
+            }
+
+            auto get_handle() -> i2c_master_bus_handle_t {
+                return this->bus_handle;
+            } 
+    };
 
     class I2cDevice {
         private:
@@ -25,7 +39,7 @@ namespace i2c {
             I2cDevice() {}
 
         public:
-            static auto init(uint8_t address) -> I2cDevice {
+            static auto init(I2cBus &bus, uint8_t address) -> I2cDevice {
                 I2cDevice device;
 
                 i2c_device_config_t dev_cfg = {};
@@ -35,7 +49,7 @@ namespace i2c {
                 dev_cfg.scl_wait_us = 0;
                 dev_cfg.flags = {};
                 
-                ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &device.dev_handle));
+                ESP_ERROR_CHECK(i2c_master_bus_add_device(bus.get_handle(), &dev_cfg, &device.dev_handle));
                 return device;
             }
 
