@@ -1,6 +1,7 @@
 #pragma once
 
 #include "driver/i2c_master.h"
+#include <cstring>
 
 namespace i2c {
     class I2cBus {
@@ -53,7 +54,7 @@ namespace i2c {
                 return device;
             }
 
-            auto read(uint8_t reg) -> uint8_t {
+            auto read_u8(uint8_t reg) -> uint8_t {
                 uint8_t value = 0;
 
                 ESP_ERROR_CHECK(i2c_master_transmit_receive(
@@ -68,6 +69,21 @@ namespace i2c {
                 return value;
             }
 
+            auto read_u16(uint8_t reg) -> uint16_t {
+                uint8_t data[2];
+
+                ESP_ERROR_CHECK(i2c_master_transmit_receive(
+                    dev_handle,
+                    &reg,
+                    1,
+                    data,
+                    2,
+                    -1
+                ));
+
+                return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+            }
+
             auto read_n(uint8_t reg, uint32_t len, uint8_t *data) -> int {
                 ESP_ERROR_CHECK(i2c_master_transmit_receive(
                     this->dev_handle,
@@ -80,7 +96,33 @@ namespace i2c {
 
                 return 0;
             }
+
+            auto write_n(uint8_t reg, const uint8_t *data, size_t len) -> void {
+                if (len > 1023) {
+                    return;
+                }
+
+                uint8_t buffer[1024];
+                buffer[0] = reg;
+                memcpy(buffer+1, data, len);
+
+                ESP_ERROR_CHECK(i2c_master_transmit(
+                    this->dev_handle,
+                    buffer,
+                    len + 1,
+                    -1
+                ));
+            }
+
+            auto write_u8(uint8_t reg, uint8_t value) -> void {
+                uint8_t data[2] = { reg, value };
+
+                ESP_ERROR_CHECK(i2c_master_transmit(
+                    this->dev_handle,
+                    data,
+                    2,
+                    -1
+                ));
+            }
     };
-
-
 }
