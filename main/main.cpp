@@ -14,10 +14,10 @@ auto led_blink() -> void {
 
     while (1) {
         std::println("led on");
-        gpio_set_level(LED_GPIO, 1);
+        gpio_set_level(LED_GPIO, 0);
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         std::println("led off");
-        gpio_set_level(LED_GPIO, 0);
+        gpio_set_level(LED_GPIO, 1);
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }
@@ -34,8 +34,16 @@ auto bmp() -> void {
     }
 }
 
+auto test() -> void {
+    while (1) {
+        std::println("second ok");
+        std::this_thread::sleep_for(std::chrono::milliseconds(125));
+    }
+}
+
 extern "C" void app_main(void) {
     auto fut_led = std::async(std::launch::async, led_blink);
+    auto fut_test = std::async(std::launch::async, test);
    // std::future<void> fut_bmp = std::async(std::launch::async, bmp);
 
     while (1) {
