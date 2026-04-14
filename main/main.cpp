@@ -25,7 +25,14 @@ auto led_blink() -> void {
 auto bmp() -> void {
     auto bus = i2c::I2cBus::init_master();
     auto dev_0 = i2c::I2cDevice::init(bus, 0x76);
-    auto bmp = bmp280::Bmp280::from_i2c(dev_0);
+    auto bmp_result = bmp280::Bmp280::from_i2c(dev_0);
+
+    if (!std::holds_alternative<bmp280::Bmp280>(bmp_result)) {
+        std::println("bmp280 init error");
+        return;
+    }
+
+    auto bmp = std::get<bmp280::Bmp280>(bmp_result);
 
     while (1) {
         auto m = bmp.measure();
@@ -44,7 +51,7 @@ auto test() -> void {
 extern "C" void app_main(void) {
     auto fut_led = std::async(std::launch::async, led_blink);
     auto fut_test = std::async(std::launch::async, test);
-   // std::future<void> fut_bmp = std::async(std::launch::async, bmp);
+    //auto fut_bmp = std::async(std::launch::async, bmp);
 
     while (1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));

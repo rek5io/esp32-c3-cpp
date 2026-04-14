@@ -1,13 +1,15 @@
 #pragma once
 
 #include "i2c.cpp"
-#include <stdexcept>
+#include <variant>
 
 namespace bmp280 {
     struct Measurement {
         float temperature;
         float pressure;
     };
+
+    class BmpError {};
 
     class Bmp280 {
         private:
@@ -75,11 +77,11 @@ namespace bmp280 {
             }
 
         public:
-            static auto from_i2c(i2c::I2cDevice dev) -> Bmp280 {
+            static auto from_i2c(i2c::I2cDevice dev) -> std::variant<Bmp280, BmpError> {
                 auto self = Bmp280(dev);
 
                 if (dev.read_u8(0xD0) != 0x58) {
-                    throw std::runtime_error("not an bmp280");
+                    return BmpError();
                 }
                 
                 self.dev.write_u8(0xf4, 0x57);  // temp x2, pressure x16, normal mode
@@ -102,17 +104,17 @@ namespace bmp280 {
 
             auto measure() -> Measurement {
                 uint8_t buf[6];
-                dev.read_n(0xf7, 6, buf);
+                this->dev.read_n(0xf7, 6, buf);
 
-                int64_t adc_P =
-                    ((int64_t)buf[0] << 12) |
-                    ((int64_t)buf[1] << 4)  |
-                    ((int64_t)buf[2] >> 4);
+                int32_t adc_P =
+                    ((int32_t)buf[0] << 12) |
+                    ((int32_t)buf[1] << 4)  |
+                    ((int32_t)buf[2] >> 4);
 
-                int64_t adc_T =
-                    ((int64_t)buf[3] << 12) |
-                    ((int64_t)buf[4] << 4)  |
-                    ((int64_t)buf[5] >> 4);
+                int32_t adc_T =
+                    ((int32_t)buf[3] << 12) |
+                    ((int32_t)buf[4] << 4)  |
+                    ((int32_t)buf[5] >> 4);
 
                 Measurement m;
                 m.temperature = this->compensate_T(adc_T);
