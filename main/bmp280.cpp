@@ -1,6 +1,7 @@
 #pragma once
 
 #include "i2c.cpp"
+#include <stdexcept>
 
 namespace bmp280 {
     struct Measurement {
@@ -32,7 +33,7 @@ namespace bmp280 {
                 auto self = Bmp280(dev);
 
                 if (dev.read_u8(0xD0) != 0x58) {
-
+                    throw std::runtime_error("not an bmp280");
                 }
                 
                 self.dev.write_u8(0xf4, 0x57);  // temp x2, pressure x16, normal mode
