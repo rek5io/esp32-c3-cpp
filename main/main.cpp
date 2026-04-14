@@ -22,6 +22,6 @@ extern "C" void app_main(void) {
         std::println("led off");
         gpio_set_level(LED_GPIO, 0);
         util::time::delay(util::time::Duration::from_millis(500));
-        std::println("chip id: {}", bmp.read_temp());
+        std::println("chip id: {}", bmp.read_temperature());
     }
 }
