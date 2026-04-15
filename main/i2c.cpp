@@ -2,26 +2,33 @@
 
 #include "driver/i2c_master.h"
 #include <cstring>
+#include <variant>
 
 namespace i2c {
+    class Ok {};
+
+    class Error {};
+
     class I2cBus {
         private:
             i2c_master_bus_handle_t bus_handle;
             I2cBus() {}
 
         public:
-            static auto init_master() -> I2cBus {
+            static auto init_master(gpio_num_t scl, gpio_num_t sda) -> std::variant<I2cBus, Error> {
                 i2c_master_bus_handle_t bus_handle;
                 i2c_master_bus_config_t i2c_mst_config = {};
                 i2c_mst_config.clk_source = I2C_CLK_SRC_DEFAULT;
                 i2c_mst_config.i2c_port = I2C_NUM_0;
-                i2c_mst_config.scl_io_num = GPIO_NUM_3;
-                i2c_mst_config.sda_io_num = GPIO_NUM_4;
+                i2c_mst_config.scl_io_num = scl;
+                i2c_mst_config.sda_io_num = sda;
                 i2c_mst_config.glitch_ignore_cnt = 7;
                 i2c_mst_config.flags = {};
                 i2c_mst_config.flags.enable_internal_pullup = true;
 
-                ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
+                if (i2c_new_master_bus(&i2c_mst_config, &bus_handle) != ESP_OK) {
+                    return Error();
+                }
     
                 I2cBus bus;
                 bus.bus_handle = bus_handle;
@@ -40,7 +47,7 @@ namespace i2c {
             I2cDevice() {}
 
         public:
-            static auto init(I2cBus &bus, uint8_t address) -> I2cDevice {
+            static auto init(I2cBus &bus, uint8_t address) -> std::variant<I2cDevice, Error> {
                 I2cDevice device;
 
                 i2c_device_config_t dev_cfg = {};
@@ -50,7 +57,10 @@ namespace i2c {
                 dev_cfg.scl_wait_us = 0;
                 dev_cfg.flags = {};
                 
-                ESP_ERROR_CHECK(i2c_master_bus_add_device(bus.get_handle(), &dev_cfg, &device.dev_handle));
+                if (i2c_master_bus_add_device(bus.get_handle(), &dev_cfg, &device.dev_handle) != ESP_OK) {
+                    return Error();
+                }
+
                 return device;
             }
 

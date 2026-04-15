@@ -3,6 +3,7 @@
 #include <future>
 #include "driver/gpio.h"
 
+#include "dht22.cpp"
 #include "i2c.cpp"
 #include "bmp280.cpp"
 
@@ -23,10 +24,23 @@ auto led_blink() -> void {
 }
 
 auto bmp() -> void {
-    auto bus = i2c::I2cBus::init_master();
-    auto dev_0 = i2c::I2cDevice::init(bus, 0x76);
-    auto bmp_result = bmp280::Bmp280::from_i2c(dev_0);
+    auto bus_result = i2c::I2cBus::init_master(GPIO_NUM_3, GPIO_NUM_4);
+    if (!std::holds_alternative<i2c::I2cBus>(bus_result)) {
+        std::println("i2c bus init error");
+        return;
+    }
 
+    auto bus = std::get<i2c::I2cBus>(bus_result);
+
+    auto dev_result = i2c::I2cDevice::init(bus, 0x76);
+    if (!std::holds_alternative<i2c::I2cDevice>(dev_result)) {
+        std::println("i2c bus init error");
+        return;
+    }
+
+    auto dev = std::get<i2c::I2cDevice>(dev_result);
+
+    auto bmp_result = bmp280::Bmp280::from_i2c(dev);
     if (!std::holds_alternative<bmp280::Bmp280>(bmp_result)) {
         std::println("bmp280 init error");
         return;
@@ -41,17 +55,28 @@ auto bmp() -> void {
     }
 }
 
+auto dht() -> void {
+    auto dh = dht22::Dht22::from_gpio(GPIO_NUM_5);
+
+    while (1) {
+        auto m = dh.measure();
+        std::println("dht22 temp: {}, humidity: {}", m.temperature, m.humidity);
+        std::this_thread::sleep_for(std::chrono::milliseconds(125));
+    }
+}
+
 auto test() -> void {
     while (1) {
         std::println("second ok");
-        std::this_thread::sleep_for(std::chrono::milliseconds(125));
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 }
 
 extern "C" void app_main(void) {
     auto fut_led = std::async(std::launch::async, led_blink);
-    auto fut_test = std::async(std::launch::async, test);
-    //auto fut_bmp = std::async(std::launch::async, bmp);
+    //auto fut_test = std::async(std::launch::async, test);
+    auto fut_bmp = std::async(std::launch::async, bmp);
+    auto fut_dht = std::async(std::launch::async, dht);
 
     while (1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));

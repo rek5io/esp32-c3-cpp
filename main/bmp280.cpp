@@ -116,10 +116,10 @@ namespace bmp280 {
                     ((int32_t)buf[4] << 4)  |
                     ((int32_t)buf[5] >> 4);
 
-                Measurement m;
-                m.temperature = this->compensate_T(adc_T);
-                m.pressure = this->compensate_P(adc_P);
-                return m;
+                float t = (float)this->compensate_T(adc_T) / 100.0;
+                float p = this->compensate_P(adc_P);
+
+                return {t, p};
             }
     };
 }
