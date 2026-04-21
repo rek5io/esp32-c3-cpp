@@ -1,7 +1,8 @@
 #pragma once
 
 #include "i2c.cpp"
-#include <variant>
+#include "result.hpp"
+using namespace result;
 
 namespace bmp280 {
     struct Measurement {
@@ -76,35 +77,49 @@ namespace bmp280 {
                 return p;
             }
 
+            static inline uint16_t le_u16(uint8_t lsb, uint8_t msb) {
+                return (((uint16_t)msb) << 8 | (uint16_t)lsb);
+            }
+
+            static inline int16_t le_i16(uint8_t lsb, uint8_t msb) {
+               return (((int16_t)msb) << 8 | (int16_t)lsb);
+            }
         public:
-            static auto from_i2c(i2c::I2cDevice dev) -> std::variant<Bmp280, BmpError> {
+            static auto from_i2c(i2c::I2cDevice dev) -> Result<Bmp280, BmpError> {
                 auto self = Bmp280(dev);
 
-                if (dev.read_u8(0xD0) != 0x58) {
-                    return BmpError();
+                uint8_t id = 0;
+                uint8_t buf[24] = {0};
+
+                if (dev.read_n(0xD0, 1, &id).is_err() || id != 0x58 || self.dev.read_n(0x88, 24, buf).is_err()) {
+                    return Result<Bmp280, BmpError>::Err(BmpError());
                 }
                 
                 self.dev.write_u8(0xf4, 0x57);  // temp x2, pressure x16, normal mode
                 self.dev.write_u8(0xf5, 0x40);  // standby 125ms, filter off
-                self.t1 = self.dev.read_u16(0x88);
-                self.t2 = (int16_t)self.dev.read_u16(0x8a);
-                self.t3 = (int16_t)self.dev.read_u16(0x8c);
-                self.p1 = self.dev.read_u16(0x8e);
-                self.p2 = (int16_t)self.dev.read_u16(0x90);
-                self.p3 = (int16_t)self.dev.read_u16(0x92);
-                self.p4 = (int16_t)self.dev.read_u16(0x94);
-                self.p5 = (int16_t)self.dev.read_u16(0x96);
-                self.p6 = (int16_t)self.dev.read_u16(0x98);
-                self.p7 = (int16_t)self.dev.read_u16(0x9a);
-                self.p8 = (int16_t)self.dev.read_u16(0x9c);
-                self.p9 = (int16_t)self.dev.read_u16(0x9e);
+               
+                self.t1 = le_u16(buf[0],  buf[1]);
+                self.t2 = le_i16(buf[2],  buf[3]);
+                self.t3 = le_i16(buf[4],  buf[5]);
 
-                return self;
+                self.p1 = le_u16(buf[6],  buf[7]);
+                self.p2 = le_i16(buf[8],  buf[9]);
+                self.p3 = le_i16(buf[10], buf[11]);
+                self.p4 = le_i16(buf[12], buf[13]);
+                self.p5 = le_i16(buf[14], buf[15]);
+                self.p6 = le_i16(buf[16], buf[17]);
+                self.p7 = le_i16(buf[18], buf[19]);
+                self.p8 = le_i16(buf[20], buf[21]);
+                self.p9 = le_i16(buf[22], buf[23]);
+         
+                return Result<Bmp280, BmpError>::Ok(self);
             }
 
-            auto measure() -> Measurement {
-                uint8_t buf[6];
-                this->dev.read_n(0xf7, 6, buf);
+            auto measure() -> Result<Measurement, BmpError> {
+                uint8_t buf[6] = {0};
+                if (this->dev.read_n(0xf7, 6, buf).is_err()) {
+                    return Result<Measurement, BmpError>::Err(BmpError()); 
+                }
 
                 int32_t adc_P =
                     ((int32_t)buf[0] << 12) |
@@ -119,7 +134,7 @@ namespace bmp280 {
                 float t = (float)this->compensate_T(adc_T) / 100.0;
                 float p = this->compensate_P(adc_P);
 
-                return {t, p};
+                return Result<Measurement, BmpError>::Ok({t, p});
             }
     };
 }

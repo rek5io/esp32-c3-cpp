@@ -2,12 +2,16 @@
 
 #include "driver/i2c_master.h"
 #include <cstring>
-#include <variant>
+#include "result.hpp"
+#include "unit.hpp"
+
+using namespace result;
+using namespace unit;
 
 namespace i2c {
     class Ok {};
 
-    class Error {};
+    class I2cError {};
 
     class I2cBus {
         private:
@@ -15,7 +19,7 @@ namespace i2c {
             I2cBus() {}
 
         public:
-            static auto init_master(gpio_num_t scl, gpio_num_t sda) -> std::variant<I2cBus, Error> {
+            static auto init_master(gpio_num_t scl, gpio_num_t sda) -> Result<I2cBus, I2cError> {
                 i2c_master_bus_handle_t bus_handle;
                 i2c_master_bus_config_t i2c_mst_config = {};
                 i2c_mst_config.clk_source = I2C_CLK_SRC_DEFAULT;
@@ -27,12 +31,12 @@ namespace i2c {
                 i2c_mst_config.flags.enable_internal_pullup = true;
 
                 if (i2c_new_master_bus(&i2c_mst_config, &bus_handle) != ESP_OK) {
-                    return Error();
+                    return Result<I2cBus, I2cError>::Err(I2cError());
                 }
     
                 I2cBus bus;
                 bus.bus_handle = bus_handle;
-                return bus;
+                return Result<I2cBus, I2cError>::Ok(bus);
             }
 
             auto get_handle() -> i2c_master_bus_handle_t {
@@ -47,7 +51,7 @@ namespace i2c {
             I2cDevice() {}
 
         public:
-            static auto init(I2cBus &bus, uint8_t address) -> std::variant<I2cDevice, Error> {
+            static auto init(I2cBus &bus, uint8_t address) -> Result<I2cDevice, I2cError> {
                 I2cDevice device;
 
                 i2c_device_config_t dev_cfg = {};
@@ -58,81 +62,95 @@ namespace i2c {
                 dev_cfg.flags = {};
                 
                 if (i2c_master_bus_add_device(bus.get_handle(), &dev_cfg, &device.dev_handle) != ESP_OK) {
-                    return Error();
+                    return Result<I2cDevice, I2cError>::Err(I2cError());
                 }
 
-                return device;
+                return Result<I2cDevice, I2cError>::Ok(device);
             }
 
-            auto read_u8(uint8_t reg) -> uint8_t {
+            auto read_u8(uint8_t reg) -> Result<uint8_t, I2cError> {
                 uint8_t value = 0;
 
-                ESP_ERROR_CHECK(i2c_master_transmit_receive(
+                if (i2c_master_transmit_receive(
                     this->dev_handle,
                     &reg,
                     1,
                     &value,
                     1,
                     -1
-                ));
+                ) != ESP_OK) {
+                    return Result<uint8_t, I2cError>::Err(I2cError());
+                }
 
-                return value;
+                return Result<uint8_t, I2cError>::Ok(value);
             }
 
-            auto read_u16(uint8_t reg) -> uint16_t {
+            auto read_u16(uint8_t reg) -> Result<uint16_t, I2cError> {
                 uint8_t data[2];
 
-                ESP_ERROR_CHECK(i2c_master_transmit_receive(
+                if (i2c_master_transmit_receive(
                     dev_handle,
                     &reg,
                     1,
                     data,
                     2,
                     -1
-                ));
+                ) != ESP_OK) {
+                    return Result<uint16_t, I2cError>::Err(I2cError());
+                }
 
-                return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+                return Result<uint16_t, I2cError>::Ok((uint16_t)data[0] | ((uint16_t)data[1] << 8));
             }
 
-            auto read_n(uint8_t reg, uint32_t len, uint8_t *data) -> int {
-                ESP_ERROR_CHECK(i2c_master_transmit_receive(
+            auto read_n(uint8_t reg, uint32_t len, uint8_t *data) -> Result<Unit, I2cError> {
+                if (i2c_master_transmit_receive(
                     this->dev_handle,
                     &reg,
                     1,
                     data,
                     len,
                     -1
-                ));
+                ) != ESP_OK) {
+                    return Result<Unit, I2cError>::Err(I2cError());
+                }
 
-                return 0;
+                return Result<Unit, I2cError>::Ok(Unit());
             }
 
-            auto write_n(uint8_t reg, const uint8_t *data, size_t len) -> void {
+            auto write_n(uint8_t reg, const uint8_t *data, size_t len) -> Result<Unit, I2cError> {
                 if (len > 1023) {
-                    return;
+                    return Result<Unit, I2cError>::Err(I2cError());
                 }
 
                 uint8_t buffer[1024];
                 buffer[0] = reg;
                 memcpy(buffer+1, data, len);
 
-                ESP_ERROR_CHECK(i2c_master_transmit(
+                if (i2c_master_transmit(
                     this->dev_handle,
                     buffer,
                     len + 1,
                     -1
-                ));
+                ) != ESP_OK) {
+                    return Result<Unit, I2cError>::Err(I2cError());
+                }
+
+                return Result<Unit, I2cError>::Ok(Unit());
             }
 
-            auto write_u8(uint8_t reg, uint8_t value) -> void {
+            auto write_u8(uint8_t reg, uint8_t value) -> Result<Unit, I2cError> {
                 uint8_t data[2] = { reg, value };
 
-                ESP_ERROR_CHECK(i2c_master_transmit(
+                if (i2c_master_transmit(
                     this->dev_handle,
                     data,
                     2,
                     -1
-                ));
+                ) != ESP_OK) {
+                    return Result<Unit, I2cError>::Err(I2cError());
+                }
+
+                return Result<Unit, I2cError>::Ok(Unit());
             }
     };
 }

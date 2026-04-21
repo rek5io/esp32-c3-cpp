@@ -6,7 +6,12 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "result.hpp"
+using namespace result;
+
 namespace dht22 {
+    struct DhtError {};
+
     struct Measurement {
         float temperature;
         float humidity;
@@ -82,17 +87,17 @@ namespace dht22 {
                 return d;
             }
 
-            auto measure() -> Measurement {
+            auto measure() -> Result<Measurement, DhtError> {
                 uint8_t data[5] = {0};
 
                 esp_err_t err = read_raw(data);
                 if (err != ESP_OK) {
-                    return {-1, -1};
+                    return Result<Measurement, DhtError>::Err(DhtError());
                 }
 
                 uint8_t sum = data[0] + data[1] + data[2] + data[3];
                 if (data[4] != sum) {
-                    return {-1, -1};
+                    return Result<Measurement, DhtError>::Err(DhtError());
                 }
 
                 int16_t raw_h = (data[0] << 8) | data[1];
@@ -108,7 +113,7 @@ namespace dht22 {
                     temperature = raw_t / 10.0f;
                 }
 
-                return {temperature, humidity};
+                return Result<Measurement, DhtError>::Ok({temperature, humidity});
             }
     };
 }
