@@ -2,25 +2,30 @@
 #include <thread>
 #include <future>
 #include "driver/gpio.h"
-
 #include "i2c_oled.cpp"
 #include "dht22.cpp"
 #include "i2c.cpp"
 #include "bmp280.cpp"
 #include "result.hpp"
 using namespace result;
-
+#define time 1000
 #define LED_GPIO GPIO_NUM_8
-
+struct measurements
+{
+    uint8_t humidity;
+    uint16_t temperature1, temperature2;
+    uint32_t pressure;
+};
+measurements mea;
 auto led_blink() -> void {
     gpio_reset_pin(LED_GPIO);
     gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
 
     while (1) {
-        std::println("led on");
+        //std::println("led on");
         gpio_set_level(LED_GPIO, 0);
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        std::println("led off");
+        //std::println("led off");
         gpio_set_level(LED_GPIO, 1);
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
@@ -46,10 +51,13 @@ auto bmp(i2c::I2cBus bus) -> void {
     while (1) {
         auto m = bmp.measure(); 
         m.on_ok([](bmp280::Measurement m) {
-            std::println("bmp280 temp: {}, pressure: {}", m.temperature, m.pressure);
+            mea.pressure = m.pressure;
+            mea.temperature1 = m.temperature*10;
+            //std::println("bmp280 temp: {}, pressure: {}", m.temperature, m.pressure);
+
         });
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
 }
 
@@ -58,10 +66,12 @@ auto dht() -> void {
 
     while (1) {
         dh.measure().on_ok([](dht22::Measurement m) {
-            std::println("dht22 temp: {}, humidity: {}", m.temperature, m.humidity); 
+            mea.humidity = m.humidity;
+            mea.temperature2 = m.temperature*10;
+            //std::println("dht22 temp: {}, humidity: {}", m.temperature, m.humidity); 
         });
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
 }
 
@@ -74,10 +84,10 @@ auto oled_task(i2c::I2cBus bus) -> void {
 
     auto dev = dev_result.unwrap();
     auto oled = oled::Oled::from_i2c(dev).unwrap();
-    #define time 5000
     oled.clear();
     oled.update();
     while (1) {
+        //DEMO CODE
         oled.clear();
         oled.fill_chess(1);
         oled.update();
@@ -117,13 +127,13 @@ extern "C" void app_main(void)  {
     }
 
     auto bus = bus_result.unwrap();
-
     auto fut_led = std::async(std::launch::async, led_blink);
     auto fut_bmp = std::async(std::launch::async, [&]() { bmp(bus); });
     auto fut_dht = std::async(std::launch::async, dht);
     auto fut_oled = std::async(std::launch::async, [&]() { oled_task(bus); });
 
     while (1) {
-        std::this_thread::sleep_for(std::chrono::seconds(500));
+        std::println("Temperature: {}, Humidity: {}, Pressure: {}", (float)(mea.temperature1+mea.temperature2)/20, mea.humidity, mea.pressure);
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
     } 
 }
