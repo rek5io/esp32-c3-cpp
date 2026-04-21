@@ -3,6 +3,7 @@
 #include <future>
 #include "driver/gpio.h"
 
+#include "i2c_oled.cpp"
 #include "dht22.cpp"
 #include "i2c.cpp"
 #include "bmp280.cpp"
@@ -64,8 +65,28 @@ auto dht() -> void {
     }
 }
 
+auto oled_task(i2c::I2cBus bus) -> void {
+    auto dev_result = i2c::I2cDevice::init(bus, 0x3c);
+    if (dev_result.is_err()) {
+        std::println("i2c oled bus init error");
+        return;
+    }
+
+    auto dev = dev_result.unwrap();
+    auto oled = oled::Oled::from_i2c(dev).unwrap();
+
+    oled.clear();
+    oled.update();
+
+    while (1) {
+        oled.set_pixel(12, 12, 1);
+        oled.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+}
+
 extern "C" void app_main(void)  {
-    auto bus_result = i2c::I2cBus::init_master(GPIO_NUM_20, GPIO_NUM_0);
+    auto bus_result = i2c::I2cBus::init_master(GPIO_NUM_0, GPIO_NUM_20);
     if (bus_result.is_err()) {
         std::println("i2c bus init error");
     }
@@ -75,6 +96,7 @@ extern "C" void app_main(void)  {
     auto fut_led = std::async(std::launch::async, led_blink);
     auto fut_bmp = std::async(std::launch::async, [&]() { bmp(bus); });
     auto fut_dht = std::async(std::launch::async, dht);
+    auto fut_oled = std::async(std::launch::async, [&]() { oled_task(bus); });
 
     while (1) {
         std::this_thread::sleep_for(std::chrono::seconds(500));
