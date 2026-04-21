@@ -74,14 +74,39 @@ auto oled_task(i2c::I2cBus bus) -> void {
 
     auto dev = dev_result.unwrap();
     auto oled = oled::Oled::from_i2c(dev).unwrap();
-
+    #define time 5000
     oled.clear();
     oled.update();
-
     while (1) {
-        oled.set_pixel(12, 12, 1);
+        oled.clear();
+        oled.fill_chess(1);
         oled.update();
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
+        oled.clear();
+        oled.draw_line(20, 1, 10, 6, true);
+        oled.draw_line(20, 1, 30, 6, true);
+        oled.draw_line(10, 6, 20, 10, true);
+        oled.draw_line(30, 6, 20, 10, true);
+        oled.draw_line(10, 20, 10, 6, true);
+        oled.draw_line(30, 20, 30, 6, true);
+        oled.draw_line(20, 10, 20, 25, true);
+        oled.draw_line(10, 20, 20, 25, true);
+        oled.draw_line(30, 20, 20, 25, true);
+        oled.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
+        oled.clear();
+        oled.println("1110001010", true);
+        oled.println("1010101010", false);
+        oled.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
+        oled.clear();
+        oled.draw_circle(64, 32, 30, true);
+        oled.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
+        oled.clear();
+        oled.fill_chess(4);
+        oled.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
 }
 
