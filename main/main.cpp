@@ -7,6 +7,7 @@
 #include "i2c.cpp"
 #include "bmp280.cpp"
 #include "result.hpp"
+#include "mutex.hpp"
 using namespace result;
 
 #define time 1000
@@ -17,7 +18,7 @@ struct Measurements {
     dht22::Measurement dht;
 };
 
-Measurements mea;
+mutex::Mutex<Measurements> mea = mutex::Mutex<Measurements>::init(Measurements());
 
 auto led_blink() -> void {
     gpio_reset_pin(LED_GPIO);
@@ -53,7 +54,8 @@ auto bmp(i2c::I2cBus bus) -> void {
     while (1) {
         auto m = bmp.measure(); 
         m.on_ok([](bmp280::Measurement m) {
-            mea.bmp = m;
+            auto guard = mea.lock();
+            guard.get_ref().bmp = m;
         });
 
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
@@ -65,7 +67,8 @@ auto dht() -> void {
 
     while (1) {
         dh.measure().on_ok([](dht22::Measurement m) {
-            mea.dht = m;
+            auto guard = mea.lock();
+            guard.get_ref().dht = m;
         });
         
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
@@ -130,11 +133,15 @@ extern "C" void app_main(void)  {
     auto fut_oled = std::async(std::launch::async, [&]() { oled_task(bus); });
 
     while (1) {
-        std::println("Temperature: {}, Humidity: {}, Pressure: {}",
-            (float)(((mea.bmp.temperature * 10) + (mea.dht.temperature * 10)) / 20),
-            mea.dht.humidity,
-            mea.bmp.pressure
-        );
+        {
+            auto guard = mea.lock();
+            
+            std::println("Temperature: {}, Humidity: {}, Pressure: {}",
+                (float)(((guard.get_ref().bmp.temperature * 10) + (guard.get_ref().dht.temperature * 10)) / 20),
+                guard.get_ref().dht.humidity,
+                guard.get_ref().bmp.pressure
+            );
+        }
         
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     } 
