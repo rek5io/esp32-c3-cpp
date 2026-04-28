@@ -8,15 +8,17 @@
 #include "bmp280.cpp"
 #include "result.hpp"
 using namespace result;
+
 #define time 1000
 #define LED_GPIO GPIO_NUM_8
-struct measurements
-{
-    uint8_t humidity;
-    uint16_t temperature1, temperature2;
-    uint32_t pressure;
+
+struct Measurements {
+    bmp280::Measurement bmp;
+    dht22::Measurement dht;
 };
-measurements mea;
+
+Measurements mea;
+
 auto led_blink() -> void {
     gpio_reset_pin(LED_GPIO);
     gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
@@ -51,10 +53,7 @@ auto bmp(i2c::I2cBus bus) -> void {
     while (1) {
         auto m = bmp.measure(); 
         m.on_ok([](bmp280::Measurement m) {
-            mea.pressure = m.pressure;
-            mea.temperature1 = m.temperature*10;
-            //std::println("bmp280 temp: {}, pressure: {}", m.temperature, m.pressure);
-
+            mea.bmp = m;
         });
 
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
@@ -66,9 +65,7 @@ auto dht() -> void {
 
     while (1) {
         dh.measure().on_ok([](dht22::Measurement m) {
-            mea.humidity = m.humidity;
-            mea.temperature2 = m.temperature*10;
-            //std::println("dht22 temp: {}, humidity: {}", m.temperature, m.humidity); 
+            mea.dht = m;
         });
         
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
@@ -133,7 +130,12 @@ extern "C" void app_main(void)  {
     auto fut_oled = std::async(std::launch::async, [&]() { oled_task(bus); });
 
     while (1) {
-        std::println("Temperature: {}, Humidity: {}, Pressure: {}", (float)(mea.temperature1+mea.temperature2)/20, mea.humidity, mea.pressure);
+        std::println("Temperature: {}, Humidity: {}, Pressure: {}",
+            (float)(((mea.bmp.temperature * 10) + (mea.dht.temperature * 10)) / 20),
+            mea.dht.humidity,
+            mea.bmp.pressure
+        );
+        
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     } 
 }

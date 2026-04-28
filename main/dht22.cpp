@@ -10,7 +10,7 @@
 using namespace result;
 
 namespace dht22 {
-    struct DhtError {};
+    class DhtError {};
 
     struct Measurement {
         float temperature;
