@@ -15,7 +15,7 @@ namespace bmp280 {
     class Bmp280 {
         private:
             i2c::I2cDevice dev;
-            int16_t t1;
+            uint16_t t1;
             int16_t t2;
             int16_t t3;
             uint16_t p1;
@@ -31,7 +31,7 @@ namespace bmp280 {
 
             Bmp280(i2c::I2cDevice dev) : dev(dev) {}
 
-            auto compensate_T(int32_t adc_T) -> uint32_t {
+            auto compensate_T(int32_t adc_T) -> float {
                 int32_t var1 = ((((adc_T >> 3) - ((int32_t)t1 << 1)))
                        * (int32_t)t2) >> 11;
 
@@ -41,8 +41,8 @@ namespace bmp280 {
 
                 this->t_fine = var1 + var2;
 
-                int32_t t = (this->t_fine * 5 + 128) >> 8;
-                return t;
+                float t = ((float)((this->t_fine * 5 + 128) >> 8) / 100.0);
+                return std::clamp(t, (float)-40.0, (float)85.0);
             }
 
             auto compensate_P(int32_t adc_P) -> uint32_t {
@@ -131,7 +131,7 @@ namespace bmp280 {
                     ((int32_t)buf[4] << 4)  |
                     ((int32_t)buf[5] >> 4);
 
-                float t = (float)this->compensate_T(adc_T) / 100.0;
+                float t = this->compensate_T(adc_T);
                 uint32_t p = this->compensate_P(adc_P);
 
                 return Result<Measurement, BmpError>::Ok({t, p});
