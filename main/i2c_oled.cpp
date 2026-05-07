@@ -9,7 +9,7 @@
 using namespace result;
 
 namespace oled {
-    const uint8_t font8x8_basic[43][8] = {
+    const uint8_t font8x8_basic[36][8] = {
         [0] = {0x3C, 0x42, 0x42, 0x42, 0x42, 0x42, 0x3C, 0x00}, // '0'
         [1] = {0x18, 0x78, 0x18, 0x18, 0x18, 0x18, 0x3C, 0x00}, // '1'
         [2] = {0x38, 0x44, 0x04, 0x08, 0x10, 0x20, 0x7E, 0x00}, // '2'
@@ -31,7 +31,7 @@ namespace oled {
         [18] = {0x3C, 0x18, 0x18, 0x18, 0x18, 0x18, 0x3C, 0x00}, // 'I'
         [19] = {0x0C, 0x0C, 0x0C, 0x0C, 0x0C, 0x4C, 0x38, 0x00}, // 'J'
         [20] = {0x41, 0x42, 0x44, 0x78, 0x44, 0x42, 0x41, 0x00}, // 'K'
-        [21] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x7E, 0x00}, // {0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x7E, 0x00}, // 'L'
+        [21] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x7E, 0x00}, // 'L'
         [22] = {0x42, 0x66, 0x5A, 0x42, 0x42, 0x42, 0x42, 0x00}, // 'M'
         [23] = {0x42, 0x62, 0x52, 0x4A, 0x46, 0x42, 0x42, 0x00}, // 'N'
         [24] = {0x7E, 0x42, 0x42, 0x42, 0x42, 0x42, 0x7E, 0x00}, // 'O'
@@ -46,13 +46,16 @@ namespace oled {
         [33] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // 'X'
         [34] = {0x81, 0x42, 0x24, 0x18, 0x18, 0x18, 0x18, 0x00}, // 'Y'
         [35] = {0x7E, 0x02, 0x04, 0x08, 0x10, 0x20, 0x7E, 0x00}, // 'Z'
-        [36] = {0x0C, 0x12, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00}, // 'stopien'([)
-        [37] = {0x00, 0x62, 0x64, 0x08, 0x10, 0x26, 0x46, 0x00}, // '%' (\)
-        [38] = {0x18, 0x18, 0x24, 0x42, 0x81, 0x81, 0x42, 0x3C}, // 'kropelka (])
-        [39] = {0x38, 0x44, 0x54, 0x54, 0x54, 0x54, 0x7C, 0x38}, // 'termometr?' (^)
-        [40] = {0x3C, 0x52, 0x93, 0x95, 0x99, 0x81, 0x42, 0x3C}, // 'zegar?' (_)
-        [41] ={0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x60, 0x00}, // 'kropka ' (`)
-        [42] ={0x00, 0x60, 0x60, 0x00, 0x00, 0x60, 0x00, 0x00}, // 'dwukropek- przyda sie' ()
+    };
+
+    const uint8_t font8x8_basic_symbols[7][8] = {
+        [0] = {0x0C, 0x12, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00}, // 'stopien'([)
+        [1] = {0x00, 0x62, 0x64, 0x08, 0x10, 0x26, 0x46, 0x00}, // '%' (\)
+        [2] = {0x18, 0x18, 0x24, 0x42, 0x81, 0x81, 0x42, 0x3C}, // 'kropelka (])
+        [3] = {0x38, 0x44, 0x54, 0x54, 0x54, 0x54, 0x7C, 0x38}, // 'termometr?' (^)
+        [4] = {0x3C, 0x52, 0x93, 0x95, 0x99, 0x81, 0x42, 0x3C}, // 'zegar?' (_)
+        [5] ={0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x60, 0x00}, // 'kropka ' (`)
+        [6] ={0x00, 0x60, 0x60, 0x00, 0x00, 0x60, 0x00, 0x00}, // 'dwukropek- przyda sie' ()
     };
 
     class OledError {};
@@ -87,14 +90,16 @@ namespace oled {
             uint8_t y_size = 64;
             uint8_t coursor_x = 4;
             uint8_t coursor_y = 0;
-            Oled(i2c::I2cDevice dev) : dev(dev) {}
+
+            int16_t encode = -2;
+
+            Oled(i2c::I2cDevice dev) : 
+                dev(dev)
+            {
+            }
 
             void oled_cmd(uint8_t cmd) {
                 this->dev.write_u8(0x00, cmd);
-            }
-
-            void oled_data(const uint8_t* data, size_t len) {
-                this->dev.write_n(0x40, data, len);
             }
 
             void oled_init() {
@@ -155,6 +160,7 @@ namespace oled {
                 // 17. Display ON
                 oled_cmd(0xAF);
             }
+
             void set_pixel(int x, int y, bool on) {
                 if (x < 0 || x >= x_size || y < 0 || y >= y_size) {
                     return;
@@ -250,70 +256,57 @@ namespace oled {
                 }
             }
 
-            void print(const char* str, bool color=0) {
-                while (*str) {
-                    if(*str>='0' && *str<='9') {
-                        draw_symbol(coursor_x, coursor_y, font8x8_basic[*str - '0'], 8, 8, color);
-                    } else if(*str>='A' && *str<='Z' ) {
-                        draw_symbol(coursor_x, coursor_y, font8x8_basic[*str-'A'+10], 8, 8, color);
-                    } else if(*str>='a' && *str<='z'){
-                        draw_symbol(coursor_x, coursor_y, font8x8_basic[*str-'a'+10], 8, 8, color);
-                    } else if(*str>'Z'&&*str<'a'){
-                        draw_symbol(coursor_x, coursor_y, font8x8_basic[*str-'['+36], 8, 8, color);
-                    } 
-                    coursor_x += 8;
-                    str++;
-                }
-            }
-
-            void println(const char* str, bool color=0) {
-                print(str, color);
-                coursor_x = 4;
-                coursor_y += 8;
-                if (coursor_y + 8 > y_size) {
-                    coursor_y = 0;
-                }
-            }
-
             void putc(char c, bool color = false) {
                 if (c >= '0' && c <= '9') {
-                    draw_symbol(coursor_x, coursor_y, font8x8_basic[c - '0'], 8, 8, color);
+                    uint8_t num = (c - '0');
+
+                    if (encode == -1) {
+                        encode = num * 10;
+                    } else if (encode != -2) {
+                        encode += num;
+                        draw_symbol(coursor_x, coursor_y, font8x8_basic_symbols[encode], 8, 8, color);
+                        encode = -2;
+                    } else {
+                        draw_symbol(coursor_x, coursor_y, font8x8_basic[num], 8, 8, color);
+                    }
                 } else if (c >= 'A' && c <= 'Z') {
                     draw_symbol(coursor_x, coursor_y, font8x8_basic[c - 'A' + 10], 8, 8, color);
                 } else if (c >= 'a' && c <= 'z') {
                     draw_symbol(coursor_x, coursor_y, font8x8_basic[c - 'a' + 10], 8, 8, color);
-                } else if(c>'Z'&&c<'a'){
-                    draw_symbol(coursor_x, coursor_y, font8x8_basic[c-'['+36], 8, 8, color);
-                }
-                switch (c)
-                {
-                case ',':
-                    draw_symbol(coursor_x, coursor_y, font8x8_basic[41], 8, 8, color);
-                    break;
-                case '.':
-                    draw_symbol(coursor_x, coursor_y, font8x8_basic[41], 8, 8, color);
-                    break;
-                default:
-                    break;
+                } else {
+                    switch (c) {
+                    case ',':
+                    case '.':
+                        draw_symbol(coursor_x, coursor_y, font8x8_basic_symbols[5], 8, 8, color);
+                        break;
+                    case '\n':
+                        coursor_x = 4;
+                        coursor_y += 8;
+                        if (coursor_y + 8 > y_size) {
+                            coursor_y = 0;
+                        }
+                        break;
+                    case '%':
+                        encode = -1;
+                        break;
+                    default:
+                        return; // skip unknown char
+                    }
                 }
 
                 coursor_x += 8;
             }
 
             template <typename... Args>
-            void print_fmt(std::format_string<Args...> fmt, Args&&... args) {
+            void print(std::format_string<Args...> fmt, Args&&... args) {
                 FramebufferWriter w(this, false);
                 std::format_to(w, fmt, std::forward<Args>(args)...);
             }
 
             template <typename... Args>
-            void println_fmt(std::format_string<Args...> fmt, Args&&... args) {
-                print_fmt(fmt, std::forward<Args>(args)...);
-                coursor_x = 4;
-                coursor_y += 8;
-                if (coursor_y + 8 > y_size) {
-                    coursor_y = 0;
-                }
+            void println(std::format_string<Args...> fmt, Args&&... args) {
+                print(fmt, std::forward<Args>(args)...);
+                putc('\n');
             }
 
             void fill_chess(uint8_t size){
@@ -342,6 +335,10 @@ namespace oled {
             void set_coursor(uint8_t x, uint8_t y) {
                 coursor_x = x;
                 coursor_y = y;
+            }
+
+            ~Oled() {
+                delete[] framebuffer;
             }
     };
 }

@@ -98,10 +98,11 @@ auto oled_task(i2c::I2cBus bus) -> void {
             hum = guard.get_ref().dht.humidity;
             press = guard.get_ref().bmp.pressure;
         }
-        oled.println_fmt("^ {}[C", temper);
-        oled.println_fmt("] {}\\", hum);
-        oled.println_fmt("_ {}Pa", press);
+        oled.println("^ {}[C", temper);
+        oled.println("] {}\\", hum);
+        oled.println("_ {}Pa", press);
         oled.update();
+
         std::this_thread::sleep_for(std::chrono::milliseconds(5*time));
         oled.clear();
         oled.draw_symbol(5, 5,  oled::font8x8_basic[38], 8, 8, true);
@@ -109,8 +110,7 @@ auto oled_task(i2c::I2cBus bus) -> void {
         oled.draw_symbol(21, 5, oled::font8x8_basic[40], 8, 8, true);
         oled.draw_symbol(29, 5, oled::font8x8_basic[41], 8, 8, true);
         oled.update();
-        oled.print_fmt("12 to {} ", 12);
-        oled.println_fmt("67 to {} ", 67);
+        
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
         /*
         //DEMO CODE
