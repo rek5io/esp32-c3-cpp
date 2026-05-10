@@ -12,6 +12,13 @@ using namespace result;
 
 #define time 1000
 
+void print_heap_info() {
+    multi_heap_info_t info;
+    heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
+
+    std::println("mem info: free: {} KB allocated: {} KB", info.total_free_bytes / 1024, info.total_allocated_bytes / 1024);
+}
+
 struct Measurements {
     bmp280::Measurement bmp;
     dht22::Measurement dht;
@@ -89,6 +96,7 @@ auto oled_task(i2c::I2cBus bus) -> void {
             hum = guard.get_ref().dht.humidity;
             press = guard.get_ref().bmp.pressure;
         }
+
         oled.println("^ {}[C", temper);
         oled.println("] {}\\", hum);
         oled.println("_ {}Pa", press);
@@ -101,7 +109,6 @@ auto oled_task(i2c::I2cBus bus) -> void {
         oled.draw_symbol(21, 5, oled::font8x8_basic[40], 8, 8, true);
         oled.draw_symbol(29, 5, oled::font8x8_basic[41], 8, 8, true);
         oled.update();
-        
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
         /*
         //DEMO CODE
@@ -135,6 +142,8 @@ auto oled_task(i2c::I2cBus bus) -> void {
         oled.update();
         std::this_thread::sleep_for(std::chrono::milliseconds(time));*/
     }
+
+    oled.free();
 }
 
 extern "C" void app_main(void)  {
@@ -151,5 +160,6 @@ extern "C" void app_main(void)  {
 
     while (1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        print_heap_info();
     } 
 }

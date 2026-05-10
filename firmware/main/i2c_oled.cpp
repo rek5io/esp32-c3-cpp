@@ -337,8 +337,11 @@ namespace oled {
                 coursor_y = y;
             }
 
-            ~Oled() {
-                delete[] framebuffer;
+            void free() {
+                if (framebuffer) {
+                    delete[] framebuffer;
+                    framebuffer = nullptr;
+                }
             }
     };
 }
