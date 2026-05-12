@@ -16,7 +16,10 @@ void print_heap_info() {
     multi_heap_info_t info;
     heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
 
-    std::println("mem info: free: {} KB allocated: {} KB", info.total_free_bytes / 1024, info.total_allocated_bytes / 1024);
+    std::println("mem info: free: {} KB allocated: {} KB", 
+        info.total_free_bytes / 1024,
+        info.total_allocated_bytes / 1024
+    );
 }
 
 struct Measurements {
@@ -80,23 +83,28 @@ auto oled_task(i2c::I2cBus bus) -> void {
         return;
     }
 
-    auto dev = dev_result.unwrap();
-    auto oled = oled::Oled::from_i2c(dev).unwrap();
-    float hum;
-    uint32_t press;
-    float temper;
+    auto oled = oled::Oled::from_i2c(dev_result.unwrap()).unwrap();
     oled.clear();
     oled.update();
+    
     while (1) {
-        oled.clear();
         {
             auto guard = mea.lock();
             
-            temper = ((guard.get_ref().bmp.temperature * 10) + (guard.get_ref().dht.temperature * 10)) / 20;
-            hum = guard.get_ref().dht.humidity;
-            press = guard.get_ref().bmp.pressure;
+            float temper = ((guard.get_ref().bmp.temperature * 10) + (guard.get_ref().dht.temperature * 10)) / 20;
+            float hum = guard.get_ref().dht.humidity;
+            float press = (float)guard.get_ref().bmp.pressure / 100.0;
+
+            oled.clear();
+            oled.println("%03 {:.2f}  %00C", temper);
+            oled.println("%02 {:.2f}  %01", hum);
+            oled.println("%04 {:.2f} HPa", press);
+            oled.update();
         }
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
+
+        /*
         oled.println("^ {}[C", temper);
         oled.println("] {}\\", hum);
         oled.println("_ {}Pa", press);
@@ -110,6 +118,7 @@ auto oled_task(i2c::I2cBus bus) -> void {
         oled.draw_symbol(29, 5, oled::font8x8_basic[41], 8, 8, true);
         oled.update();
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
+        */
         /*
         //DEMO CODE
         oled.clear();
