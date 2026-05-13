@@ -7,6 +7,7 @@
 #include "dht22.cpp"
 #include "i2c.cpp"
 #include "bmp280.cpp"
+#include "uart.cpp"
 #include "result.hpp"
 #include "mutex.hpp"
 using namespace result;
@@ -17,7 +18,7 @@ void print_heap_info() {
     multi_heap_info_t info;
     heap_caps_get_info(&info, MALLOC_CAP_DEFAULT);
 
-    std::println("mem info: free: {} KB allocated: {} KB", 
+    std::println("mem info: free: {} KB allocated: {} KB",
         info.total_free_bytes / 1024,
         info.total_allocated_bytes / 1024
     );
@@ -44,7 +45,7 @@ auto led_task() -> void {
     }
 }
 
-auto sensors_task(i2c::I2cBus bus) -> void { 
+auto sensors_task(i2c::I2cBus bus) -> void {
     auto dev_result = i2c::I2cDevice::init(bus, 0x76);
     if (dev_result.is_err()) {
         std::println("bmp280 i2c dev init error");
@@ -58,7 +59,7 @@ auto sensors_task(i2c::I2cBus bus) -> void {
         std::println("bmp280 init error");
         return;
     }
-    
+
     auto bmp = bmp_result.unwrap();
     auto dh = dht22::Dht22::from_gpio(GPIO_NUM_9);
 
@@ -87,11 +88,11 @@ auto oled_task(i2c::I2cBus bus) -> void {
     auto oled = oled::Oled::from_i2c(dev_result.unwrap()).unwrap();
     oled.clear();
     oled.update();
-    
+
     while (1) {
         {
             auto guard = mea.lock();
-            
+
             float temper = ((guard.get_ref().bmp.temperature * 10) + (guard.get_ref().dht.temperature * 10)) / 20;
             float hum = guard.get_ref().dht.humidity;
             float press = (float)guard.get_ref().bmp.pressure / 100.0;
@@ -105,21 +106,6 @@ auto oled_task(i2c::I2cBus bus) -> void {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
 
-        /*
-        oled.println("^ {}[C", temper);
-        oled.println("] {}\\", hum);
-        oled.println("_ {}Pa", press);
-        oled.update();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(5*time));
-        oled.clear();
-        oled.draw_symbol(5, 5,  oled::font8x8_basic[38], 8, 8, true);
-        oled.draw_symbol(13, 5, oled::font8x8_basic[39], 8, 8, true);
-        oled.draw_symbol(21, 5, oled::font8x8_basic[40], 8, 8, true);
-        oled.draw_symbol(29, 5, oled::font8x8_basic[41], 8, 8, true);
-        oled.update();
-        std::this_thread::sleep_for(std::chrono::milliseconds(time));
-        */
         /*
         //DEMO CODE
         oled.clear();
@@ -156,7 +142,40 @@ auto oled_task(i2c::I2cBus bus) -> void {
     oled.free();
 }
 
+auto uart_task() -> void {
+    auto uart_res = uart::Uart::init(UART_NUM_1);
+
+    if (uart_res.is_err()) {
+        std::println("uart init error");
+    }
+
+    auto uart = uart_res.unwrap();
+
+    size_t idx = 0;
+
+    while (1) {
+        std::vector<uint8_t> v{12, 12, 67};
+        uart.write(v);
+
+        auto vec = uart.read();
+
+        if (vec.size() > 0) {
+            std::print("read {} got {} bytes: |", idx, vec.size());
+            for (uint8_t c : vec) {
+                std::print("{}, ", c);
+            }
+            std::println("|");
+
+            idx++;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+}
+
 extern "C" void app_main(void)  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     auto bus_result = i2c::I2cBus::init_master(GPIO_NUM_0, GPIO_NUM_20);
     if (bus_result.is_err()) {
         std::println("i2c bus init error");
@@ -164,14 +183,17 @@ extern "C" void app_main(void)  {
 
     auto bus = bus_result.unwrap();
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     auto fut_led = std::async(std::launch::async, led_task);
     auto fut_sensors = std::async(std::launch::async, [&]() { sensors_task(bus); });
     auto fut_oled = std::async(std::launch::async, [&]() { oled_task(bus); });
+    auto fut_uart = std::async(std::launch::async, [&]() { uart_task(); });
 
     while (1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        print_heap_info();
+        //print_heap_info();
 
-        baos::Request::test();
-    } 
+        //baos::Request::test();
+    }
 }
