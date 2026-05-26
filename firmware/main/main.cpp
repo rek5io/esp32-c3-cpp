@@ -10,6 +10,7 @@
 #include "uart.cpp"
 #include "result.hpp"
 #include "mutex.hpp"
+#include "Network.cpp"
 using namespace result;
 
 #define time 1000
@@ -172,7 +173,24 @@ auto uart_task() -> void {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 }
+void Network_task() {
+    esp_err_t ret = nvs_flash_init();
 
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+        ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+
+    ESP_ERROR_CHECK(ret);
+    wifi_init_softap();
+    start_webserver();
+    while (1) {
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
 extern "C" void app_main(void)  {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -189,7 +207,7 @@ extern "C" void app_main(void)  {
     auto fut_sensors = std::async(std::launch::async, [&]() { sensors_task(bus); });
     auto fut_oled = std::async(std::launch::async, [&]() { oled_task(bus); });
     auto fut_uart = std::async(std::launch::async, [&]() { uart_task(); });
-
+    auto fut_web_server = std::async(std::launch::async, [&]() { Network_task(); });
     while (1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         //print_heap_info();
