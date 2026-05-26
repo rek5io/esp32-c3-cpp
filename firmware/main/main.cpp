@@ -11,6 +11,7 @@
 #include "result.hpp"
 #include "mutex.hpp"
 #include "Network.cpp"
+#include "baos.cpp"
 using namespace result;
 
 #define time 1000
@@ -145,7 +146,6 @@ auto oled_task(i2c::I2cBus bus) -> void {
 
 auto uart_task() -> void {
     auto uart_res = uart::Uart::init(UART_NUM_1);
-
     if (uart_res.is_err()) {
         std::println("uart init error");
     }
