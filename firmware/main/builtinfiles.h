@@ -62,14 +62,20 @@ static const char notFoundContent[]= R"==(
   <p><a href="/">Start again</a></p>
 </body>
 )==";
-static const char html_page[] =
-"<!DOCTYPE html>"
-"<html>"
-"<head>"
-"  <title>ESP32-C3</title>"
-"</head>"
-"<body>"
-"  <h1>ESP32-C3 Web Server</h1>"
-"  <button onclick='fetch(\"/api/led\")'>LED</button>"
-"</body>"
-"</html>";
+static const char html_page[] =R"==(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register_device</title>
+</head>
+<body>
+    <form action="regist" method="post">
+        <input type="text" id="ssid">
+        <input type="password" id="ssid_passwd">
+        <button type="submit">Zaloguj sie do sieci</button>
+    </form>
+</body>
+</html>
+)==";
