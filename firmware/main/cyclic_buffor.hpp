@@ -1,47 +1,61 @@
-struct cyclic_buffor{
-        char* bufforptr;
-        char* readptr;
-        char* writeptr;
-        int size = 10;
-};
-cyclic_buffor* create_cyclic_buffor(){
-    cyclic_buffor* buffor = new cyclic_buffor();
-    buffor->bufforptr = new char[buffor->size];
-    buffor->writeptr = buffor->bufforptr+1;
-    buffor->readptr = buffor->writeptr;
-    return buffor;
-}
-cyclic_buffor* create_cyclic_buffor(int i_size){
-    cyclic_buffor* buffor = new cyclic_buffor();
-    buffor->size = i_size;
-    buffor->bufforptr = new char[buffor->size];
-    buffor->writeptr = buffor->bufforptr+1;
-    buffor->readptr = buffor->bufforptr;
-    return buffor;
-}
-void delete_cyclic_buffor(cyclic_buffor* buff){
-    delete(buff);
-}
-char read(cyclic_buffor* buff){
-    char znak = *buff->readptr;
-    if(buff->readptr+1 != buff->writeptr){
-        if(buff->readptr == buff->bufforptr+buff->size-1 && buff->writeptr != buff->bufforptr){
-            buff->readptr = buff->bufforptr;
-        }
-        else{
-            buff->readptr++;
-        }
-    }
-    return znak;
-}
-void write(cyclic_buffor* buff, char znak){
-    *buff->writeptr = znak;
-    if(buff->readptr != buff->writeptr+1){
-        if(buff->writeptr == buff->bufforptr+buff->size-1 && buff->readptr != buff->bufforptr){
-            buff->writeptr = buff->bufforptr;
-        }
-        else{
-            buff->writeptr++;
-        }
+#pragma once
+
+#include <optional>
+
+namespace cyclic_buffor {
+    template<typename T, const size_t CAP>
+    class CyclicBuffor {
+        private:
+            std::optional<T> buffor[CAP];
+            size_t read_head = 0;
+            size_t write_head = 0;
+            size_t size_ = 0;
+
+        public:
+            CyclicBuffor() {}
+
+            auto size() -> size_t {
+                return size_;
+            }
+
+            auto capacity() -> size_t {
+                return CAP;
+            }
+
+            auto read() -> std::optional<T> {
+                if (size_ == 0) {
+                    return std::nullopt;
+                }
+
+                std::optional<T> tmp = std::nullopt;
+                buffor[read_head].swap(tmp);
+                read_head = (read_head + 1) % CAP;
+                size_--;
+
+                return std::move(tmp);
+            }
+
+            auto write(T value) -> std::optional<T> {
+                if (size_ < CAP) {
+                    size_++;
+                }
+
+                std::optional<T> tmp = std::move(value);
+                buffor[write_head].swap(tmp);
+                write_head = (write_head + 1) % CAP;
+
+                return std::move(tmp);
+            }
+    };
+
+    auto test() -> void {
+        CyclicBuffor<int, 32> buffor;
+
+        std::println("{}", buffor.read().has_value());
+        std::println("{}", buffor.write(67).has_value());
+        std::println("{}", buffor.write(42).has_value());
+        std::println("{}", buffor.read().value());
+        std::println("{}", buffor.read().value());
+        std::println("{}", buffor.read().has_value());
     }
 }
